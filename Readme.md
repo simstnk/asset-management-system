@@ -406,7 +406,6 @@ Update dokumentasi jika diperlukan
 📧 Kontak
 Email: dkcocro@gmail.com
 
-Repository: https://github.com/simstnk/asset-management-system
-
+Repository: https://github.com/simstnk/Sistem-manajemen-inventaris-aset.git
 
 ---
