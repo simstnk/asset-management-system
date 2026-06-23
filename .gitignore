@@ -1,0 +1,14 @@
+# Dependencies (berat)
+node_modules/
+
+# Environment (rahasia)
+.env
+.env.local
+
+# Data dinamis runtime (foto upload, log)
+uploads/
+logs/
+
+# File sampah OS
+.DS_Store
+Thumbs.db
