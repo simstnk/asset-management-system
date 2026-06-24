@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
+        /* ===== RESET & VARIABLES ===== */
         * { margin:0; padding:0; box-sizing:border-box; }
         :root {
             --primary: #1a2a3a;
@@ -31,6 +32,7 @@
         html { font-size:15px; scroll-behavior:smooth; }
         body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; overflow-x:hidden; }
 
+        /* ===== SIDEBAR ===== */
         .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:998; opacity:0; transition:opacity 0.3s ease; pointer-events:none; }
         .sidebar-overlay.active { display:block; opacity:1; pointer-events:auto; }
 
@@ -47,6 +49,7 @@
         .sidebar-nav a.active { background:rgba(58,123,213,0.25); color:#fff; box-shadow:inset 3px 0 0 var(--accent); }
         .sidebar-footer { padding:14px 20px 10px; border-top:1px solid rgba(255,255,255,0.06); font-size:11px; opacity:.5; text-align:center; flex-shrink:0; }
 
+        /* ===== MAIN CONTENT ===== */
         .main-content { margin-left:var(--sidebar-width); flex:1; min-height:100vh; display:flex; flex-direction:column; transition:margin 0.3s cubic-bezier(0.4,0,0.2,1); }
         .header { height:var(--header-height); background:var(--card); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; position:sticky; top:0; z-index:100; background:rgba(255,255,255,0.96); backdrop-filter:blur(6px); flex-shrink:0; }
         .header-left { display:flex; align-items:center; gap:16px; }
@@ -58,6 +61,7 @@
         .header-right { display:flex; align-items:center; gap:14px; }
         .header-right .date-badge { font-size:13px; color:var(--text-muted); background:var(--bg); padding:6px 14px; border-radius:20px; font-weight:500; }
 
+        /* ===== NOTIFICATION ===== */
         .notification-badge { position:relative; display:inline-block; }
         .notification-badge .badge-count { position:absolute; top:-6px; right:-10px; background:var(--danger); color:#fff; border-radius:50%; padding:2px 6px; font-size:10px; font-weight:700; min-width:18px; text-align:center; }
         .notification-panel { position:absolute; right:0; top:40px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 8px 30px rgba(0,0,0,0.12); width:320px; max-height:400px; overflow-y:auto; z-index:1001; display:none; padding:8px 0; }
@@ -67,6 +71,7 @@
         .notification-item .notif-time { font-size:11px; color:var(--text-muted); }
         .notification-item .notif-icon { margin-right:8px; }
 
+        /* ===== USER DROPDOWN ===== */
         .user-dropdown { position:relative; display:inline-block; }
         .user-badge { display:flex; align-items:center; gap:8px; background:var(--bg); padding:5px 12px 5px 6px; border-radius:30px; cursor:pointer; transition:var(--transition); font-size:13px; font-weight:500; border:1px solid transparent; }
         .user-badge:hover { background:var(--border); border-color:var(--border); }
@@ -85,6 +90,7 @@
         .dropdown-menu hr { margin:4px 12px; border:none; border-top:1px solid var(--border); }
         .dropdown-header { padding:8px 18px 4px; font-size:12px; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); margin-bottom:4px; }
 
+        /* ===== PANELS & CARDS ===== */
         .page-content { padding:24px 28px 28px; flex:1; }
         .app-footer { padding:14px 28px; border-top:1px solid var(--border); background:var(--card); font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:auto; }
         .app-footer strong { color:var(--text); font-weight:600; }
@@ -140,6 +146,8 @@
         .badge-status.done { background:#e8f5ed; color:var(--success); }
         .badge-status.pending { background:#fef5e7; color:var(--warning); }
         .badge-status.cancelled { background:#fdeaea; color:var(--danger); }
+        .badge-status.borrowed { background:#fef0e0; color:#e67e22; }
+        .badge-status.used { background:#e8eaf6; color:#3949ab; }
 
         .btn { display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border:none; border-radius:var(--radius-sm); font-size:13px; font-weight:500; cursor:pointer; transition:var(--transition); background:var(--bg); color:var(--text); }
         .btn:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,0.06); }
@@ -225,12 +233,10 @@
         .avatar-upload-label { position:absolute; bottom:0; right:0; background:var(--accent); color:#fff; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:2px solid var(--card); transition:var(--transition); }
         .avatar-upload-label:hover { background:var(--primary-light); }
 
-        /* Image preview modal */
-        .image-preview-overlay {
-            display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; align-items:center; justify-content:center; cursor:pointer;
-        }
-        .image-preview-overlay.active { display:flex; }
-        .image-preview-overlay img { max-width:90%; max-height:90%; object-fit:contain; border-radius:8px; box-shadow:0 0 40px rgba(0,0,0,0.5); }
+        /* ===== FOTO PREVIEW ===== */
+        .asset-photo-thumb { width:50px; height:50px; object-fit:cover; border-radius:4px; cursor:pointer; transition:0.2s; }
+        .asset-photo-thumb:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+        .photo-modal-img { max-width:90vw; max-height:80vh; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.3); }
 
         @media(max-width: 992px) {
             .sidebar { transform:translateX(-100%); }
@@ -291,6 +297,7 @@
             .label-print-grid { display:grid; grid-template-columns:repeat(3,2.5in); justify-content:center; gap:0.05in; margin:0 auto; }
             .no-print { display:none !important; }
             body { background:#fff; margin:0.2in; }
+            .asset-photo-thumb { max-width:80px; max-height:80px; }
         }
     </style>
 </head>
@@ -408,7 +415,7 @@
         <section class="section" id="section-assets">
             <div class="panel"><div class="panel-header"><h3><i class="fas fa-server"></i> Daftar Aset</h3><div class="panel-actions no-print"><button class="btn btn-primary" onclick="openModal('assetModal',null)" data-action="create"><i class="fas fa-plus"></i> Tambah</button><button class="btn btn-success" onclick="exportAssets()" data-action="export"><i class="fas fa-file-export"></i> Export</button><button class="btn btn-warning" onclick="document.getElementById('importAssetInput').click()" data-action="import"><i class="fas fa-file-import"></i> Import</button><input type="file" id="importAssetInput" class="import-input" accept=".csv" onchange="importAssets(event)" /><button class="btn btn-outline" onclick="printSection('assetTableBody','Daftar Aset')" data-action="print"><i class="fas fa-print"></i> Print</button></div></div>
                 <div class="panel-body">
-                    <div class="filter-bar no-print"><div class="search-box"><i class="fas fa-search"></i><input type="text" id="assetSearch" placeholder="Cari aset..." oninput="renderAssets()" /></div><select class="filter-select" id="assetFilter" onchange="renderAssets()"><option value="">Semua Divisi</option></select><select class="filter-select" id="assetStatusFilter" onchange="renderAssets()"><option value="">Semua Status</option><option value="available">Tersedia</option><option value="maintenance">Maintenance</option><option value="depleted">Habis</option></select></div>
+                    <div class="filter-bar no-print"><div class="search-box"><i class="fas fa-search"></i><input type="text" id="assetSearch" placeholder="Cari aset..." oninput="renderAssets()" /></div><select class="filter-select" id="assetFilter" onchange="renderAssets()"><option value="">Semua Divisi</option></select><select class="filter-select" id="assetStatusFilter" onchange="renderAssets()"><option value="">Semua Status</option><option value="available">Tersedia</option><option value="maintenance">Maintenance</option><option value="depleted">Habis</option><option value="borrowed">Dipinjam</option><option value="used">Terpakai</option></select></div>
                     <div class="table-responsive"><table><thead><tr><th>Foto</th><th>Nama Aset</th><th>Kategori</th><th>Divisi</th><th>Lokasi</th><th>Status</th><th>Catatan</th><th style="text-align:right;" class="no-print" id="assetActionHeader">Aksi</th></tr></thead><tbody id="assetTableBody"><tr><td colspan="8" class="text-center text-muted" style="padding:30px 0;">Belum ada data aset</td></tr></tbody></table></div>
                 </div>
             </div>
@@ -545,13 +552,15 @@
                         <option value="available">Tersedia</option>
                         <option value="maintenance">Maintenance</option>
                         <option value="depleted">Habis</option>
+                        <option value="borrowed">Dipinjam</option>
+                        <option value="used">Terpakai</option>
                     </select>
                 </div>
             </div>
             <div class="form-group"><label>Serial Number</label><input class="form-control" id="assetSerial" placeholder="Nomor seri / inventaris" /></div>
             <div class="form-group"><label>Foto Aset</label><input type="file" class="form-control" id="assetPhoto" accept="image/*" /><small class="text-muted">Maks. 5MB, format jpg/png/gif/webp</small>
                 <div id="assetPhotoPreview" style="margin-top:8px; display:none;">
-                    <img id="assetPhotoImg" src="" alt="Preview" style="max-width:200px; max-height:150px; border-radius:4px; border:1px solid #ddd; padding:4px; cursor:pointer;" onclick="openImagePreview(this.src)">
+                    <img id="assetPhotoImg" src="" alt="Preview" style="max-width:200px; max-height:150px; border-radius:4px; border:1px solid #ddd; padding:4px;">
                     <button type="button" class="btn btn-sm btn-danger" onclick="removePhotoPreview()" style="margin-left:8px;"><i class="fas fa-times"></i></button>
                 </div>
             </div>
@@ -651,11 +660,6 @@
     </div>
 </div>
 
-<!-- IMAGE PREVIEW MODAL -->
-<div class="image-preview-overlay" id="imagePreviewOverlay" onclick="closeImagePreview()">
-    <img id="imagePreviewImg" src="" alt="Preview">
-</div>
-
 <!-- TOAST -->
 <div class="toast-container" id="toastContainer"></div>
 
@@ -696,8 +700,28 @@ function formatDateTime(d) {
 }
 
 function statusBadge(status) {
-    const mapClass = { 'available': 'available', 'low': 'low', 'depleted': 'depleted', 'maintenance': 'maintenance', 'done': 'done', 'pending': 'pending', 'cancelled': 'cancelled' };
-    const mapLabel = { 'available': 'Tersedia', 'low': 'Menipis', 'depleted': 'Habis', 'maintenance': 'Maintenance', 'done': 'Selesai', 'pending': 'Pending', 'cancelled': 'Dibatalkan' };
+    const mapClass = {
+        'available': 'available',
+        'low': 'low',
+        'depleted': 'depleted',
+        'maintenance': 'maintenance',
+        'done': 'done',
+        'pending': 'pending',
+        'cancelled': 'cancelled',
+        'borrowed': 'borrowed',
+        'used': 'used'
+    };
+    const mapLabel = {
+        'available': 'Tersedia',
+        'low': 'Menipis',
+        'depleted': 'Habis',
+        'maintenance': 'Maintenance',
+        'done': 'Selesai',
+        'pending': 'Pending',
+        'cancelled': 'Dibatalkan',
+        'borrowed': 'Dipinjam',
+        'used': 'Terpakai'
+    };
     const cls = mapClass[status] || 'pending';
     const label = mapLabel[status] || status;
     return `<span class="badge-status ${cls}">${label}</span>`;
@@ -740,27 +764,6 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
 function destroyCharts() {
     Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
     chartInstances = {};
-}
-
-// ============================================================
-// ===================== IMAGE PREVIEW =========================
-function openImagePreview(src) {
-    if (!src) return;
-    const overlay = document.getElementById('imagePreviewOverlay');
-    const img = document.getElementById('imagePreviewImg');
-    if (overlay && img) {
-        img.src = src;
-        overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-}
-
-function closeImagePreview() {
-    const overlay = document.getElementById('imagePreviewOverlay');
-    if (overlay) {
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
 }
 
 // ============================================================
@@ -1229,7 +1232,7 @@ function renderAssets() {
         let photoHtml = '<span style="color:#ccc;">—</span>';
         if (a.photo) {
             const photoUrl = `${IMAGE_BASE}${a.photo}`;
-            photoHtml = `<img src="${photoUrl}" alt="foto" style="width:50px; height:50px; object-fit:cover; border-radius:4px; cursor:pointer;" onclick="openImagePreview('${photoUrl}')" onerror="this.style.display='none'">`;
+            photoHtml = `<img src="${photoUrl}" alt="foto" class="asset-photo-thumb" onclick="viewPhoto('${photoUrl}')" onerror="this.style.display='none'">`;
         }
         return `<tr>
             <td>${photoHtml}</td>
@@ -1242,6 +1245,27 @@ function renderAssets() {
             <td style="text-align:right;white-space:nowrap;" class="no-print">${show ? `<button class="btn btn-sm btn-primary" onclick="editAsset('${id}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteAsset('${id}')"><i class="fas fa-trash"></i></button>` : '<span class="text-muted" style="font-size:11px;">—</span>'}</td>
         </tr>`;
     }).join('');
+}
+
+function viewPhoto(url) {
+    const win = window.open('', '_blank', 'width=800,height=600');
+    if (win) {
+        win.document.write(`
+            <html><head><title>Foto Aset</title>
+            <style>body{display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;}
+            img{max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,0.5);}
+            button{position:fixed;top:20px;right:20px;padding:10px 20px;background:#e74c3c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:16px;}
+            button:hover{background:#c0392b;}
+            </style></head>
+            <body>
+            <button onclick="window.close()">Tutup</button>
+            <img src="${url}" alt="Foto Aset" onerror="this.outerHTML='<p style=color:white;font-size:20px;text-align:center;>Gambar tidak ditemukan</p>'">
+            </body></html>
+        `);
+        win.document.close();
+    } else {
+        toast('Izinkan popup untuk melihat foto', 'warning');
+    }
 }
 
 // ============================================================
@@ -1538,7 +1562,6 @@ function editAsset(id) {
     const data = assets.find(a => a.id === id || a._id === id);
     if (data) {
         openModal('assetModal', data);
-        // Update preview foto dengan URL absolut
         if (data.photo) {
             const img = document.getElementById('assetPhotoImg');
             const preview = document.getElementById('assetPhotoPreview');
@@ -1870,7 +1893,9 @@ function renderCharts() {
     const stCounts = {
         available: assets.filter(a => a.status === 'available').length,
         maintenance: assets.filter(a => a.status === 'maintenance').length,
-        depleted: assets.filter(a => a.status === 'depleted').length
+        depleted: assets.filter(a => a.status === 'depleted').length,
+        borrowed: assets.filter(a => a.status === 'borrowed').length,
+        used: assets.filter(a => a.status === 'used').length
     };
     const stkCounts = {
         available: stocks.filter(s => s.status === 'available').length,
@@ -1895,7 +1920,10 @@ function renderCharts() {
     if (c2) {
         chartInstances.assetStatus = new Chart(c2.getContext('2d'), {
             type: 'pie',
-            data: { labels: ['Tersedia','Maintenance','Habis'], datasets: [{ data: [stCounts.available, stCounts.maintenance, stCounts.depleted], backgroundColor: ['#27ae60','#f39c12','#e74c3c'], borderWidth: 0 }] },
+            data: {
+                labels: ['Tersedia','Maintenance','Habis','Dipinjam','Terpakai'],
+                datasets: [{ data: [stCounts.available, stCounts.maintenance, stCounts.depleted, stCounts.borrowed, stCounts.used], backgroundColor: ['#27ae60','#f39c12','#e74c3c','#e67e22','#3949ab'], borderWidth: 0 }]
+            },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } } }
         });
     }
@@ -2004,7 +2032,7 @@ function importAssets(e) {
                     category: row['Kategori'] || 'Server',
                     division: row['Divisi'] || 'IT',
                     location: row['Lokasi'] || '',
-                    status: ['available','maintenance','depleted'].includes(row['Status']) ? row['Status'] : 'available',
+                    status: ['available','maintenance','depleted','borrowed','used'].includes(row['Status']) ? row['Status'] : 'available',
                     serialNumber: row['Serial Number'] || '',
                     notes: row['Catatan'] || ''
                 });
@@ -2091,25 +2119,27 @@ function importActivities(e) {
 
 function printSection(tableId, title) {
     if (!hasPermission('print')) { toast('Akses ditolak!', 'error'); return; }
-    const w = window.open('', '_blank', 'width=1024,height=768');
-    if (!w) { toast('Izinkan popup untuk mencetak.', 'warning'); return; }
     const tb = document.getElementById(tableId);
     if (!tb || tb.children.length === 0 || tb.innerHTML.includes('Tidak ada data')) {
         toast('Tidak ada data untuk dicetak.', 'warning');
         return;
     }
-    // Clone table tanpa aksi kolom
+    // Clone table dan hapus kolom aksi (last column)
     const table = tb.closest('table');
     const clone = table.cloneNode(true);
-    // Hapus kolom aksi (terakhir) dan elemen no-print
+    // Hapus kolom terakhir (Aksi) dari setiap baris
     clone.querySelectorAll('tr').forEach(row => {
         const cells = row.querySelectorAll('td,th');
-        if (cells.length > 1) {
-            // Hapus kolom terakhir (aksi)
+        if (cells.length > 0) {
+            // Hapus kolom terakhir (Aksi)
             cells[cells.length - 1].remove();
         }
     });
+    // Hapus elemen no-print
     clone.querySelectorAll('.no-print').forEach(el => el.remove());
+    // Siapkan HTML untuk print
+    const w = window.open('', '_blank', 'width=1024,height=768');
+    if (!w) { toast('Izinkan popup untuk mencetak.', 'warning'); return; }
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
     <style>body{padding:20px;background:#fff;font-family:'Segoe UI',Arial,sans-serif}
     h1{font-size:20px;font-weight:600;color:#1a2a3a;margin-bottom:16px}
@@ -2124,10 +2154,17 @@ function printSection(tableId, title) {
     .badge-status.done{background:#e8f5ed;color:#27ae60}
     .badge-status.pending{background:#fef5e7;color:#f39c12}
     .badge-status.cancelled{background:#fdeaea;color:#e74c3c}
+    .badge-status.borrowed{background:#fef0e0;color:#e67e22}
+    .badge-status.used{background:#e8eaf6;color:#3949ab}
+    img{max-width:80px;max-height:80px;border-radius:4px;}
     .footer{margin-top:20px;font-size:12px;color:#636e72;border-top:1px solid #ddd;padding-top:10px;text-align:center}
-    .no-print{display:none}</style></head><body><h1>${title}</h1>${clone.outerHTML}
+    .no-print{display:none}
+    </style></head><body>
+    <h1>${title}</h1>
+    ${clone.outerHTML}
     <div class="footer">Dicetak pada: ${new Date().toLocaleString('id-ID')} &bull; Divisi IT - Infrastruktur Teknologi Informasi</div>
-    <script>window.onload=function(){setTimeout(function(){window.print();window.close();},500)}<\/script></body></html>`;
+    <script>window.onload=function(){setTimeout(function(){window.print();window.close();},500)}<\/script>
+    </body></html>`;
     w.document.write(html);
     w.document.close();
 }
@@ -2323,7 +2360,6 @@ function openModal(id, editData) {
             document.getElementById('assetSerial').value = editData.serialNumber || '';
             document.getElementById('assetNotes').value = editData.notes || '';
             document.getElementById('assetModalTitle').textContent = 'Edit Aset';
-            // Preview foto
             if (editData.photo) {
                 const img = document.getElementById('assetPhotoImg');
                 const preview = document.getElementById('assetPhotoPreview');
