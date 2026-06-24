@@ -238,6 +238,7 @@ Contoh Request dengan Token
 bash
 curl -X GET http://localhost:5000/api/assets \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  
 🐳 Deployment
 Deployment dengan Docker
 Buat Dockerfile untuk backend:
