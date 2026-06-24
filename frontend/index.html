@@ -225,6 +225,13 @@
         .avatar-upload-label { position:absolute; bottom:0; right:0; background:var(--accent); color:#fff; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:2px solid var(--card); transition:var(--transition); }
         .avatar-upload-label:hover { background:var(--primary-light); }
 
+        /* Image preview modal */
+        .image-preview-overlay {
+            display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; align-items:center; justify-content:center; cursor:pointer;
+        }
+        .image-preview-overlay.active { display:flex; }
+        .image-preview-overlay img { max-width:90%; max-height:90%; object-fit:contain; border-radius:8px; box-shadow:0 0 40px rgba(0,0,0,0.5); }
+
         @media(max-width: 992px) {
             .sidebar { transform:translateX(-100%); }
             .sidebar.open { transform:translateX(0); }
@@ -515,7 +522,7 @@
     </footer>
 </div><!-- /main-content -->
 
-<!-- MODALS -->
+<!-- ===== MODALS ===== -->
 <!-- ASSET MODAL -->
 <div class="modal-overlay" id="assetModal">
     <div class="modal">
@@ -523,10 +530,31 @@
         <div class="modal-body">
             <input type="hidden" id="assetEditId" />
             <div class="form-group"><label>Nama Aset <span class="required">*</span></label><input class="form-control" id="assetName" placeholder="Contoh: Server Dell PowerEdge" /></div>
-            <div class="form-row"><div class="form-group"><label>Kategori <span class="required">*</span></label><select class="form-control" id="assetCategory"></select></div><div class="form-group"><label>Divisi <span class="required">*</span></label><select class="form-control" id="assetDivision"></select></div></div>
-            <div class="form-row"><div class="form-group"><label>Lokasi <span class="required">*</span></label><input class="form-control" id="assetLocation" placeholder="Contoh: Gedung A Lantai 3" /></div><div class="form-group"><label>Status <span class="required">*</span></label><select class="form-control" id="assetStatus"><option value="available">Tersedia</option><option value="maintenance">Maintenance</option><option value="depleted">Habis</option></select></div></div>
+            <div class="form-row">
+                <div class="form-group"><label>Kategori <span class="required">*</span></label><select class="form-control" id="assetCategory"></select></div>
+                <div class="form-group"><label>Divisi <span class="required">*</span></label><select class="form-control" id="assetDivision"></select></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Lokasi <span class="required">*</span></label>
+                    <select class="form-control" id="assetLocation">
+                        <option value="">-- Pilih Lokasi --</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Status <span class="required">*</span></label>
+                    <select class="form-control" id="assetStatus">
+                        <option value="available">Tersedia</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="depleted">Habis</option>
+                    </select>
+                </div>
+            </div>
             <div class="form-group"><label>Serial Number</label><input class="form-control" id="assetSerial" placeholder="Nomor seri / inventaris" /></div>
-            <div class="form-group"><label>Foto Aset</label><input type="file" class="form-control" id="assetPhoto" accept="image/*" /><small class="text-muted">Maks. 5MB, format jpg/png/gif/webp</small><div id="assetPhotoPreview" style="margin-top:8px; display:none;"><img id="assetPhotoImg" src="" alt="Preview" style="max-width:200px; max-height:150px; border-radius:4px; border:1px solid #ddd; padding:4px;"><button type="button" class="btn btn-sm btn-danger" onclick="removePhotoPreview()" style="margin-left:8px;"><i class="fas fa-times"></i></button></div></div>
+            <div class="form-group"><label>Foto Aset</label><input type="file" class="form-control" id="assetPhoto" accept="image/*" /><small class="text-muted">Maks. 5MB, format jpg/png/gif/webp</small>
+                <div id="assetPhotoPreview" style="margin-top:8px; display:none;">
+                    <img id="assetPhotoImg" src="" alt="Preview" style="max-width:200px; max-height:150px; border-radius:4px; border:1px solid #ddd; padding:4px; cursor:pointer;" onclick="openImagePreview(this.src)">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removePhotoPreview()" style="margin-left:8px;"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
             <div class="form-group"><label>Catatan</label><textarea class="form-control" id="assetNotes" placeholder="Informasi tambahan..."></textarea></div>
         </div>
         <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('assetModal')">Batal</button><button class="btn btn-primary" onclick="saveAsset()"><i class="fas fa-save"></i> Simpan</button></div>
@@ -623,6 +651,11 @@
     </div>
 </div>
 
+<!-- IMAGE PREVIEW MODAL -->
+<div class="image-preview-overlay" id="imagePreviewOverlay" onclick="closeImagePreview()">
+    <img id="imagePreviewImg" src="" alt="Preview">
+</div>
+
 <!-- TOAST -->
 <div class="toast-container" id="toastContainer"></div>
 
@@ -630,12 +663,14 @@
 // ============================================================
 // ===================== KONFIGURASI ============================
 const API_BASE = 'http://localhost:5000/api';
+const IMAGE_BASE = 'http://localhost:5000';
 let token = localStorage.getItem('token');
 
 // ============================================================
 // ===================== HELPERS ===============================
 function toast(msg, type = 'success') {
     const c = document.getElementById('toastContainer');
+    if (!c) return;
     const e = document.createElement('div');
     e.className = `toast ${type}`;
     const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-circle' };
@@ -681,23 +716,51 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
         if (isFormData) options.body = body;
         else options.body = JSON.stringify(body);
     }
-    const res = await fetch(`${API_BASE}${endpoint}`, options);
-    if (!res.ok) {
-        const err = await res.text();
-        if (res.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('currentUser');
-            logout();
-            throw new Error('Session expired. Silakan login ulang.');
+    try {
+        const res = await fetch(`${API_BASE}${endpoint}`, options);
+        if (!res.ok) {
+            const err = await res.text();
+            if (res.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('currentUser');
+                logout();
+                throw new Error('Session expired. Silakan login ulang.');
+            }
+            throw new Error(err || 'Gagal');
         }
-        throw new Error(err || 'Gagal');
+        return res.json();
+    } catch (err) {
+        if (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED')) {
+            throw new Error('Tidak dapat terhubung ke server. Pastikan backend berjalan di ' + API_BASE);
+        }
+        throw err;
     }
-    return res.json();
 }
 
 function destroyCharts() {
     Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
     chartInstances = {};
+}
+
+// ============================================================
+// ===================== IMAGE PREVIEW =========================
+function openImagePreview(src) {
+    if (!src) return;
+    const overlay = document.getElementById('imagePreviewOverlay');
+    const img = document.getElementById('imagePreviewImg');
+    if (overlay && img) {
+        img.src = src;
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeImagePreview() {
+    const overlay = document.getElementById('imagePreviewOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
 }
 
 // ============================================================
@@ -839,10 +902,10 @@ function applyPermissions() {
     const navMaster = document.getElementById('navMaster');
     const navLogs = document.getElementById('navLogs');
     const isAdmin = currentUser && currentUser.role === 'administrator';
-    navUsers.style.display = isAdmin ? 'block' : 'none';
-    navSettings.style.display = isAdmin ? 'block' : 'none';
-    navMaster.style.display = isAdmin ? 'block' : 'none';
-    navLogs.style.display = isAdmin ? 'block' : 'none';
+    if (navUsers) navUsers.style.display = isAdmin ? 'block' : 'none';
+    if (navSettings) navSettings.style.display = isAdmin ? 'block' : 'none';
+    if (navMaster) navMaster.style.display = isAdmin ? 'block' : 'none';
+    if (navLogs) navLogs.style.display = isAdmin ? 'block' : 'none';
     if (currentUser) {
         document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
         document.getElementById('userRoleDisplay').textContent = currentUser.role;
@@ -860,37 +923,32 @@ function updateUserAvatar() {
     const settingsText = document.getElementById('settingsAvatarText');
     const settingsImage = document.getElementById('settingsAvatarImage');
     if (currentUser && currentUser.avatar) {
-        avatarText.style.display = 'none';
-        avatarImage.style.display = 'block';
-        avatarImage.src = currentUser.avatar;
-        settingsText.style.display = 'none';
-        settingsImage.style.display = 'block';
-        settingsImage.src = currentUser.avatar;
+        if (avatarText) avatarText.style.display = 'none';
+        if (avatarImage) { avatarImage.style.display = 'block'; avatarImage.src = currentUser.avatar; }
+        if (settingsText) settingsText.style.display = 'none';
+        if (settingsImage) { settingsImage.style.display = 'block'; settingsImage.src = currentUser.avatar; }
     } else {
-        avatarText.style.display = 'flex';
-        avatarImage.style.display = 'none';
-        const initial = currentUser ? (currentUser.fullName || currentUser.username).charAt(0).toUpperCase() : 'U';
-        avatarText.textContent = initial;
-        settingsText.style.display = 'flex';
-        settingsImage.style.display = 'none';
-        settingsText.textContent = initial;
+        if (avatarText) { avatarText.style.display = 'flex'; avatarText.textContent = currentUser ? (currentUser.fullName || currentUser.username).charAt(0).toUpperCase() : 'U'; }
+        if (avatarImage) avatarImage.style.display = 'none';
+        if (settingsText) { settingsText.style.display = 'flex'; settingsText.textContent = currentUser ? (currentUser.fullName || currentUser.username).charAt(0).toUpperCase() : 'U'; }
+        if (settingsImage) settingsImage.style.display = 'none';
     }
     const header = document.getElementById('dropdownUserInfo');
-    if (currentUser) header.textContent = `${currentUser.fullName || currentUser.username} • ${currentUser.role}`;
+    if (header && currentUser) header.textContent = `${currentUser.fullName || currentUser.username} • ${currentUser.role}`;
 }
 
 function toggleUserDropdown(e) {
     e.stopPropagation();
     const menu = document.getElementById('userDropdownMenu');
     const badge = document.getElementById('userBadge');
-    menu.classList.toggle('show');
-    badge.classList.toggle('active');
+    if (menu) menu.classList.toggle('show');
+    if (badge) badge.classList.toggle('active');
 }
 
 document.addEventListener('click', function(e) {
     const dropdown = document.getElementById('userDropdownMenu');
     const badge = document.getElementById('userBadge');
-    if (!badge.contains(e.target) && !dropdown.contains(e.target)) {
+    if (dropdown && badge && !badge.contains(e.target) && !dropdown.contains(e.target)) {
         dropdown.classList.remove('show');
         badge.classList.remove('active');
     }
@@ -931,12 +989,16 @@ function checkNotifications() {
 
 function updateNotifBadge() {
     const count = notifications.length;
-    document.getElementById('notifCount').textContent = count;
-    document.getElementById('notifCount').style.display = count > 0 ? 'block' : 'none';
+    const badge = document.getElementById('notifCount');
+    if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'block' : 'none';
+    }
 }
 
 function renderNotifications() {
     const list = document.getElementById('notifList');
+    if (!list) return;
     if (notifications.length === 0) {
         list.innerHTML = '<div class="notification-item" style="text-align:center;color:var(--text-muted);">Tidak ada notifikasi</div>';
         return;
@@ -953,13 +1015,15 @@ function renderNotifications() {
 function toggleNotifications(e) {
     e.stopPropagation();
     const panel = document.getElementById('notifPanel');
-    panel.classList.toggle('show');
+    if (panel) panel.classList.toggle('show');
 }
 
 document.addEventListener('click', function(e) {
     const panel = document.getElementById('notifPanel');
     const badge = document.querySelector('.notification-badge');
-    if (!badge.contains(e.target) && !panel.contains(e.target)) panel.classList.remove('show');
+    if (panel && badge && !badge.contains(e.target) && !panel.contains(e.target)) {
+        panel.classList.remove('show');
+    }
 });
 
 // ============================================================
@@ -967,6 +1031,7 @@ document.addEventListener('click', function(e) {
 function openProfileModal() {
     if (!currentUser) { toast('Silakan login terlebih dahulu.', 'warning'); return; }
     const body = document.getElementById('profileModalBody');
+    if (!body) return;
     const avatar = currentUser.avatar || '';
     const initial = (currentUser.fullName || currentUser.username).charAt(0).toUpperCase();
     body.innerHTML = `
@@ -980,66 +1045,79 @@ function openProfileModal() {
         <div class="form-group"><label>Username</label><p class="form-control" style="background:#f0f0f0;">${currentUser.username}</p></div>
         <div class="form-group"><label>Role</label><p class="form-control" style="background:#f0f0f0;">${currentUser.role}</p></div>
     `;
-    document.getElementById('profileModal').classList.add('active');
+    const modal = document.getElementById('profileModal');
+    if (modal) modal.classList.add('active');
     document.body.style.overflow = 'hidden';
-    document.getElementById('userDropdownMenu').classList.remove('show');
+    const menu = document.getElementById('userDropdownMenu');
+    if (menu) menu.classList.remove('show');
 }
 
 function openProfileSettings() {
     if (!currentUser) { toast('Silakan login terlebih dahulu.', 'warning'); return; }
-    document.getElementById('profileFullName').value = currentUser.fullName || '';
-    document.getElementById('profileUsername').value = currentUser.username;
-    document.getElementById('profileRole').value = currentUser.role;
-    document.getElementById('profileNewPassword').value = '';
-    document.getElementById('profileConfirmPassword').value = '';
+    const fullName = document.getElementById('profileFullName');
+    const username = document.getElementById('profileUsername');
+    const role = document.getElementById('profileRole');
+    const newPassword = document.getElementById('profileNewPassword');
+    const confirmPassword = document.getElementById('profileConfirmPassword');
+    if (fullName) fullName.value = currentUser.fullName || '';
+    if (username) username.value = currentUser.username;
+    if (role) role.value = currentUser.role;
+    if (newPassword) newPassword.value = '';
+    if (confirmPassword) confirmPassword.value = '';
     const settingsText = document.getElementById('settingsAvatarText');
     const settingsImage = document.getElementById('settingsAvatarImage');
     if (currentUser.avatar) {
-        settingsText.style.display = 'none';
-        settingsImage.style.display = 'block';
-        settingsImage.src = currentUser.avatar;
+        if (settingsText) settingsText.style.display = 'none';
+        if (settingsImage) { settingsImage.style.display = 'block'; settingsImage.src = currentUser.avatar; }
     } else {
-        settingsText.style.display = 'flex';
-        settingsImage.style.display = 'none';
-        settingsText.textContent = (currentUser.fullName || currentUser.username).charAt(0).toUpperCase();
+        if (settingsText) { settingsText.style.display = 'flex'; settingsText.textContent = (currentUser.fullName || currentUser.username).charAt(0).toUpperCase(); }
+        if (settingsImage) settingsImage.style.display = 'none';
     }
-    document.getElementById('profileSettingsModal').classList.add('active');
+    const modal = document.getElementById('profileSettingsModal');
+    if (modal) modal.classList.add('active');
     document.body.style.overflow = 'hidden';
-    document.getElementById('userDropdownMenu').classList.remove('show');
+    const menu = document.getElementById('userDropdownMenu');
+    if (menu) menu.classList.remove('show');
 }
 
-document.getElementById('profilePhotoInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            const imgData = ev.target.result;
-            const settingsText = document.getElementById('settingsAvatarText');
-            const settingsImage = document.getElementById('settingsAvatarImage');
-            settingsText.style.display = 'none';
-            settingsImage.style.display = 'block';
-            settingsImage.src = imgData;
-        };
-        reader.readAsDataURL(file);
-    }
-});
+// Profile photo upload
+const profilePhotoInput = document.getElementById('profilePhotoInput');
+if (profilePhotoInput) {
+    profilePhotoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const settingsText = document.getElementById('settingsAvatarText');
+                const settingsImage = document.getElementById('settingsAvatarImage');
+                if (settingsText) settingsText.style.display = 'none';
+                if (settingsImage) { settingsImage.style.display = 'block'; settingsImage.src = ev.target.result; }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
 
 async function saveProfileSettings() {
     if (!currentUser) return;
-    const fullName = document.getElementById('profileFullName').value.trim();
-    const newPassword = document.getElementById('profileNewPassword').value.trim();
-    const confirmPassword = document.getElementById('profileConfirmPassword').value.trim();
-    if (newPassword && newPassword.length < 6) { toast('Password minimal 6 karakter!', 'warning'); return; }
-    if (newPassword && newPassword !== confirmPassword) { toast('Konfirmasi password tidak cocok!', 'error'); return; }
+    const fullName = document.getElementById('profileFullName');
+    const newPassword = document.getElementById('profileNewPassword');
+    const confirmPassword = document.getElementById('profileConfirmPassword');
+    if (!fullName) return;
+    const nameVal = fullName.value.trim();
+    const npVal = newPassword ? newPassword.value.trim() : '';
+    const cpVal = confirmPassword ? confirmPassword.value.trim() : '';
+    if (npVal && npVal.length < 6) { toast('Password minimal 6 karakter!', 'warning'); return; }
+    if (npVal && npVal !== cpVal) { toast('Konfirmasi password tidak cocok!', 'error'); return; }
     const settingsImage = document.getElementById('settingsAvatarImage');
     let avatarData = currentUser.avatar || '';
-    if (settingsImage.style.display !== 'none' && settingsImage.src && !settingsImage.src.includes('undefined')) {
+    if (settingsImage && settingsImage.style.display !== 'none' && settingsImage.src && !settingsImage.src.includes('undefined')) {
         avatarData = settingsImage.src;
     }
     const idx = users.findIndex(u => u.id === currentUser.id);
     if (idx !== -1) {
-        users[idx].fullName = fullName || users[idx].username;
-        if (newPassword) users[idx].password = newPassword;
+        users[idx].fullName = nameVal || users[idx].username;
+        if (npVal) users[idx].password = npVal;
         if (avatarData) users[idx].avatar = avatarData;
         localStorage.setItem('inventaris_users', JSON.stringify(users));
         currentUser = { ...users[idx] };
@@ -1110,17 +1188,21 @@ function renderDashboard() {
     const today = new Date().toISOString().split('T')[0];
     const acts = activities.filter(a => a.date === today).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const c = document.getElementById('todayActivities');
-    if (acts.length === 0) {
-        c.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Belum ada aktivitas hari ini</p></div>';
-    } else {
-        c.innerHTML = acts.map(a => `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--text-muted);min-width:70px;">${formatDateShort(a.date)}</span><div style="flex:1;"><strong>${a.activity}</strong> <span class="text-muted" style="font-size:12px;">• ${a.division}</span>${a.notes ? `<br><span class="text-muted" style="font-size:11px;">📝 ${a.notes}</span>` : ''}</div>${statusBadge(a.status)}</div>`).join('');
+    if (c) {
+        if (acts.length === 0) {
+            c.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Belum ada aktivitas hari ini</p></div>';
+        } else {
+            c.innerHTML = acts.map(a => `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--text-muted);min-width:70px;">${formatDateShort(a.date)}</span><div style="flex:1;"><strong>${a.activity}</strong> <span class="text-muted" style="font-size:12px;">• ${a.division}</span>${a.notes ? `<br><span class="text-muted" style="font-size:11px;">📝 ${a.notes}</span>` : ''}</div>${statusBadge(a.status)}</div>`).join('');
+        }
     }
     const up = maintenances.filter(m => m.status === 'pending').sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
     const mt = document.getElementById('upcomingMaintenance');
-    if (up.length === 0) {
-        mt.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-alt"></i><p>Tidak ada jadwal maintenance mendatang</p></div>';
-    } else {
-        mt.innerHTML = up.slice(0, 5).map(m => `<div class="mt-item"><div class="mt-date">${formatDateShort(m.scheduledDate)}</div><div class="mt-info"><strong>${m.asset}</strong><span>${m.type} • ${m.assignedTo || 'Teknisi belum ditentukan'}</span></div>${statusBadge(m.status)}</div>`).join('');
+    if (mt) {
+        if (up.length === 0) {
+            mt.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-alt"></i><p>Tidak ada jadwal maintenance mendatang</p></div>';
+        } else {
+            mt.innerHTML = up.slice(0, 5).map(m => `<div class="mt-item"><div class="mt-date">${formatDateShort(m.scheduledDate)}</div><div class="mt-info"><strong>${m.asset}</strong><span>${m.type} • ${m.assignedTo || 'Teknisi belum ditentukan'}</span></div>${statusBadge(m.status)}</div>`).join('');
+        }
     }
     document.getElementById('todayDate').textContent = formatDate(today);
 }
@@ -1128,14 +1210,15 @@ function renderDashboard() {
 // ============================================================
 // ===================== RENDER ASSETS =========================
 function renderAssets() {
-    const s = document.getElementById('assetSearch').value.toLowerCase();
-    const d = document.getElementById('assetFilter').value;
-    const st = document.getElementById('assetStatusFilter').value;
+    const s = document.getElementById('assetSearch');
+    const d = document.getElementById('assetFilter');
+    const st = document.getElementById('assetStatusFilter');
     let f = assets;
-    if (s) f = f.filter(a => a.name.toLowerCase().includes(s));
-    if (d) f = f.filter(a => a.division === d);
-    if (st) f = f.filter(a => a.status === st);
+    if (s) f = f.filter(a => a.name.toLowerCase().includes(s.value.toLowerCase()));
+    if (d && d.value) f = f.filter(a => a.division === d.value);
+    if (st && st.value) f = f.filter(a => a.status === st.value);
     const tbody = document.getElementById('assetTableBody');
+    if (!tbody) return;
     if (f.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:30px 0;">Tidak ada data aset</td></tr>';
         return;
@@ -1143,7 +1226,11 @@ function renderAssets() {
     const show = currentUser && currentUser.role !== 'viewer';
     tbody.innerHTML = f.map(a => {
         const id = a.id || a._id;
-        const photoHtml = a.photo ? `<img src="${a.photo}" alt="foto" style="width:50px; height:50px; object-fit:cover; border-radius:4px;">` : '<span style="color:#ccc;">—</span>';
+        let photoHtml = '<span style="color:#ccc;">—</span>';
+        if (a.photo) {
+            const photoUrl = `${IMAGE_BASE}${a.photo}`;
+            photoHtml = `<img src="${photoUrl}" alt="foto" style="width:50px; height:50px; object-fit:cover; border-radius:4px; cursor:pointer;" onclick="openImagePreview('${photoUrl}')" onerror="this.style.display='none'">`;
+        }
         return `<tr>
             <td>${photoHtml}</td>
             <td><strong>${a.name}</strong><br><span class="text-muted" style="font-size:11px;">${a.serialNumber || '-'}</span></td>
@@ -1160,12 +1247,13 @@ function renderAssets() {
 // ============================================================
 // ===================== RENDER STOCK ==========================
 function renderStock() {
-    const s = document.getElementById('stockSearch').value.toLowerCase();
-    const st = document.getElementById('stockFilter').value;
+    const s = document.getElementById('stockSearch');
+    const st = document.getElementById('stockFilter');
     let f = stocks;
-    if (s) f = f.filter(a => a.assetName.toLowerCase().includes(s));
-    if (st) f = f.filter(a => a.status === st);
+    if (s) f = f.filter(a => a.assetName.toLowerCase().includes(s.value.toLowerCase()));
+    if (st && st.value) f = f.filter(a => a.status === st.value);
     const tbody = document.getElementById('stockTableBody');
+    if (!tbody) return;
     if (f.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:30px 0;">Tidak ada data stok</td></tr>';
         return;
@@ -1180,10 +1268,11 @@ function renderStock() {
 // ============================================================
 // ===================== RENDER MAINTENANCE ====================
 function renderMaintenance() {
-    const st = document.getElementById('mtFilter').value;
+    const st = document.getElementById('mtFilter');
     let f = maintenances;
-    if (st) f = f.filter(a => a.status === st);
+    if (st && st.value) f = f.filter(a => a.status === st.value);
     const tbody = document.getElementById('maintenanceTableBody');
+    if (!tbody) return;
     if (f.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:30px 0;">Tidak ada jadwal maintenance</td></tr>';
         return;
@@ -1198,13 +1287,14 @@ function renderMaintenance() {
 // ============================================================
 // ===================== RENDER ACTIVITIES =====================
 function renderActivities() {
-    const s = document.getElementById('activitySearch').value.toLowerCase();
-    const d = document.getElementById('activityDateFilter').value;
+    const s = document.getElementById('activitySearch');
+    const d = document.getElementById('activityDateFilter');
     let f = activities;
-    if (s) f = f.filter(a => a.activity.toLowerCase().includes(s));
-    if (d) f = f.filter(a => a.date === d);
+    if (s) f = f.filter(a => a.activity.toLowerCase().includes(s.value.toLowerCase()));
+    if (d && d.value) f = f.filter(a => a.date === d.value);
     f.sort((a, b) => new Date(b.date) - new Date(a.date));
     const tbody = document.getElementById('activityTableBody');
+    if (!tbody) return;
     if (f.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:30px 0;">Tidak ada aktivitas</td></tr>';
         return;
@@ -1219,12 +1309,13 @@ function renderActivities() {
 // ============================================================
 // ===================== RENDER LOANS ==========================
 function renderLoans() {
-    const search = document.getElementById('loanSearch').value.toLowerCase();
-    const filter = document.getElementById('loanFilter').value;
+    const search = document.getElementById('loanSearch');
+    const filter = document.getElementById('loanFilter');
     let filtered = loans;
-    if (search) filtered = filtered.filter(l => l.borrower.toLowerCase().includes(search) || l.assetName.toLowerCase().includes(search));
-    if (filter) filtered = filtered.filter(l => l.status === filter);
+    if (search) filtered = filtered.filter(l => l.borrower.toLowerCase().includes(search.value.toLowerCase()) || l.assetName.toLowerCase().includes(search.value.toLowerCase()));
+    if (filter && filter.value) filtered = filtered.filter(l => l.status === filter.value);
     const tbody = document.getElementById('loanTableBody');
+    if (!tbody) return;
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:30px 0;">Tidak ada data peminjaman</td></tr>';
         return;
@@ -1255,6 +1346,7 @@ function renderLoans() {
 // ===================== RENDER USERS ==========================
 function renderUsers() {
     const tbody = document.getElementById('userTableBody');
+    if (!tbody) return;
     if (users.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:30px 0;">Belum ada user</td></tr>';
         return;
@@ -1281,47 +1373,90 @@ async function loadMasterData() {
 
 function renderMasterTables() {
     const divTbody = document.getElementById('divisionTableBody');
-    if (divisions.length === 0) {
-        divTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
-    } else {
-        divTbody.innerHTML = divisions.map(x => {
-            const id = x.id || x._id;
-            return `<tr><td>${x.name}</td><td style="text-align:right;"><button class="btn btn-sm btn-primary" onclick="editMaster('division','${id}','${x.name}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterItem('division','${id}')"><i class="fas fa-trash"></i></button></td></tr>`;
-        }).join('');
+    if (divTbody) {
+        if (divisions.length === 0) {
+            divTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
+        } else {
+            divTbody.innerHTML = divisions.map(x => {
+                const id = x.id || x._id;
+                return `<tr><td>${x.name}</td><td style="text-align:right;"><button class="btn btn-sm btn-primary" onclick="editMaster('division','${id}','${x.name}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterItem('division','${id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+            }).join('');
+        }
     }
     const catTbody = document.getElementById('categoryTableBody');
-    if (categories.length === 0) {
-        catTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
-    } else {
-        catTbody.innerHTML = categories.map(x => {
-            const id = x.id || x._id;
-            return `<tr><td>${x.name}</td><td style="text-align:right;"><button class="btn btn-sm btn-primary" onclick="editMaster('category','${id}','${x.name}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterItem('category','${id}')"><i class="fas fa-trash"></i></button></td></tr>`;
-        }).join('');
+    if (catTbody) {
+        if (categories.length === 0) {
+            catTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
+        } else {
+            catTbody.innerHTML = categories.map(x => {
+                const id = x.id || x._id;
+                return `<tr><td>${x.name}</td><td style="text-align:right;"><button class="btn btn-sm btn-primary" onclick="editMaster('category','${id}','${x.name}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterItem('category','${id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+            }).join('');
+        }
     }
     const locTbody = document.getElementById('locationTableBody');
-    if (locations.length === 0) {
-        locTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
-    } else {
-        locTbody.innerHTML = locations.map(x => {
-            const id = x.id || x._id;
-            return `<tr><td>${x.name}</td><td style="text-align:right;"><button class="btn btn-sm btn-primary" onclick="editMaster('location','${id}','${x.name}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterItem('location','${id}')"><i class="fas fa-trash"></i></button></td></tr>`;
-        }).join('');
+    if (locTbody) {
+        if (locations.length === 0) {
+            locTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
+        } else {
+            locTbody.innerHTML = locations.map(x => {
+                const id = x.id || x._id;
+                return `<tr><td>${x.name}</td><td style="text-align:right;"><button class="btn btn-sm btn-primary" onclick="editMaster('location','${id}','${x.name}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterItem('location','${id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+            }).join('');
+        }
     }
 }
 
 function populateMasterDropdowns() {
+    // Location dropdown untuk form aset
+    const locSelect = document.getElementById('assetLocation');
+    if (locSelect) {
+        const val = locSelect.value;
+        locSelect.innerHTML = '<option value="">-- Pilih Lokasi --</option>' + locations.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+        if (val && locations.some(l => l.name === val)) locSelect.value = val;
+    }
+    // Kategori
     const catSelect = document.getElementById('assetCategory');
-    if (catSelect) { const val = catSelect.value; catSelect.innerHTML = categories.map(c => `<option value="${c.name}">${c.name}</option>`).join(''); if (val && categories.some(c => c.name === val)) catSelect.value = val; }
+    if (catSelect) {
+        const val = catSelect.value;
+        catSelect.innerHTML = categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        if (val && categories.some(c => c.name === val)) catSelect.value = val;
+    }
+    // Divisi
     const divSelect = document.getElementById('assetDivision');
-    if (divSelect) { const val = divSelect.value; divSelect.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join(''); if (val && divisions.some(d => d.name === val)) divSelect.value = val; }
+    if (divSelect) {
+        const val = divSelect.value;
+        divSelect.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        if (val && divisions.some(d => d.name === val)) divSelect.value = val;
+    }
+    // Filter Divisi
     const filterDiv = document.getElementById('assetFilter');
-    if (filterDiv) { const val = filterDiv.value; filterDiv.innerHTML = `<option value="">Semua Divisi</option>` + divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join(''); if (val && divisions.some(d => d.name === val)) filterDiv.value = val; }
-    const locSelect = document.getElementById('stockLocation');
-    if (locSelect) { const val = locSelect.value; locSelect.innerHTML = locations.map(l => `<option value="${l.name}">${l.name}</option>`).join(''); if (val && locations.some(l => l.name === val)) locSelect.value = val; }
+    if (filterDiv) {
+        const val = filterDiv.value;
+        filterDiv.innerHTML = `<option value="">Semua Divisi</option>` + divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        if (val && divisions.some(d => d.name === val)) filterDiv.value = val;
+    }
+    // Stock Location
+    const stockLoc = document.getElementById('stockLocation');
+    if (stockLoc) {
+        const val = stockLoc.value;
+        stockLoc.innerHTML = locations.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+        if (val && locations.some(l => l.name === val)) stockLoc.value = val;
+    }
+    // Activity Division
     const actDiv = document.getElementById('activityDivision');
-    if (actDiv) { const val = actDiv.value; actDiv.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join(''); if (val && divisions.some(d => d.name === val)) actDiv.value = val; }
+    if (actDiv) {
+        const val = actDiv.value;
+        actDiv.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        if (val && divisions.some(d => d.name === val)) actDiv.value = val;
+    }
+    // Loan Department
     const loanDept = document.getElementById('loanDepartment');
-    if (loanDept) { const val = loanDept.value; loanDept.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join(''); if (val && divisions.some(d => d.name === val)) loanDept.value = val; }
+    if (loanDept) {
+        const val = loanDept.value;
+        loanDept.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        if (val && divisions.some(d => d.name === val)) loanDept.value = val;
+    }
 }
 
 function openMasterModal(type, editId = null, editName = '') {
@@ -1329,7 +1464,8 @@ function openMasterModal(type, editId = null, editName = '') {
     document.getElementById('masterEditId').value = editId || '';
     document.getElementById('masterName').value = editName || '';
     document.getElementById('masterModalTitle').textContent = editId ? 'Edit ' + capitalize(type) : 'Tambah ' + capitalize(type);
-    document.getElementById('masterModal').classList.add('active');
+    const modal = document.getElementById('masterModal');
+    if (modal) modal.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
 function editMaster(type, id, name) { if (!id) { toast('ID tidak valid!', 'error'); return; } openMasterModal(type, id, name); }
@@ -1366,7 +1502,8 @@ function showMasterTab(tab) {
     document.querySelectorAll('.master-tab').forEach(el => el.style.display = 'none');
     document.querySelectorAll('[data-master-tab]').forEach(b => b.classList.remove('active'));
     document.getElementById(`master-${tab}`).style.display = 'block';
-    document.querySelector(`[data-master-tab="${tab}"]`).classList.add('active');
+    const btn = document.querySelector(`[data-master-tab="${tab}"]`);
+    if (btn) btn.classList.add('active');
 }
 
 // ============================================================
@@ -1378,12 +1515,12 @@ async function saveAsset() {
     formData.append('name', document.getElementById('assetName').value.trim());
     formData.append('category', document.getElementById('assetCategory').value);
     formData.append('division', document.getElementById('assetDivision').value);
-    formData.append('location', document.getElementById('assetLocation').value.trim());
+    formData.append('location', document.getElementById('assetLocation').value);
     formData.append('status', document.getElementById('assetStatus').value);
     formData.append('serialNumber', document.getElementById('assetSerial').value.trim());
     formData.append('notes', document.getElementById('assetNotes').value.trim());
     const photoInput = document.getElementById('assetPhoto');
-    if (photoInput.files.length > 0) formData.append('photo', photoInput.files[0]);
+    if (photoInput && photoInput.files.length > 0) formData.append('photo', photoInput.files[0]);
     const name = formData.get('name');
     const location = formData.get('location');
     if (!name || !location) { toast('Nama dan lokasi wajib!', 'warning'); return; }
@@ -1399,7 +1536,18 @@ async function saveAsset() {
 function editAsset(id) {
     if (!hasPermission('edit')) { toast('Akses ditolak!', 'error'); return; }
     const data = assets.find(a => a.id === id || a._id === id);
-    if (data) openModal('assetModal', data);
+    if (data) {
+        openModal('assetModal', data);
+        // Update preview foto dengan URL absolut
+        if (data.photo) {
+            const img = document.getElementById('assetPhotoImg');
+            const preview = document.getElementById('assetPhotoPreview');
+            if (img && preview) {
+                img.src = `${IMAGE_BASE}${data.photo}`;
+                preview.style.display = 'block';
+            }
+        }
+    }
 }
 async function deleteAsset(id) {
     if (!hasPermission('delete')) { toast('Akses ditolak!', 'error'); return; }
@@ -1550,17 +1698,22 @@ async function loadLoans() {
 }
 function openLoanModal(editData) {
     const modal = document.getElementById('loanModal');
+    if (!modal) return;
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
     const assetSelect = document.getElementById('loanAssetSelect');
-    assetSelect.innerHTML = assets.map(a => `<option value="${a.id || a._id}">${a.name} (${a.division})</option>`).join('');
+    if (assetSelect) {
+        assetSelect.innerHTML = assets.map(a => `<option value="${a.id || a._id}">${a.name} (${a.division})</option>`).join('');
+    }
     const deptSelect = document.getElementById('loanDepartment');
-    deptSelect.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    if (deptSelect) {
+        deptSelect.innerHTML = divisions.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    }
     if (editData) {
         document.getElementById('loanEditId').value = editData.id || editData._id;
-        assetSelect.value = editData.assetId || '';
+        if (assetSelect) assetSelect.value = editData.assetId || '';
         document.getElementById('loanBorrower').value = editData.borrower || '';
-        deptSelect.value = editData.department || '';
+        if (deptSelect) deptSelect.value = editData.department || '';
         document.getElementById('loanDate').value = editData.loanDate ? editData.loanDate.split('T')[0] : '';
         document.getElementById('loanExpectedReturn').value = editData.expectedReturnDate ? editData.expectedReturnDate.split('T')[0] : '';
         document.getElementById('loanNotes').value = editData.notes || '';
@@ -1648,6 +1801,7 @@ function exportLoans() {
 // ===================== USERS MANAGEMENT ======================
 function openUserModal(editData) {
     const m = document.getElementById('userModal');
+    if (!m) return;
     m.classList.add('active');
     document.body.style.overflow = 'hidden';
     if (editData) {
@@ -1729,30 +1883,38 @@ function renderCharts() {
         cancelled: maintenances.filter(m => m.status === 'cancelled').length
     };
     const colors = ['#3a7bd5','#27ae60','#f39c12','#e74c3c','#8e44ad','#1abc9c','#e67e22','#2c3e50'];
-    const c1 = document.getElementById('divisionChart').getContext('2d');
-    chartInstances.division = new Chart(c1, {
-        type: 'bar',
-        data: { labels: divs.length ? divs : ['Belum Ada Data'], datasets: [{ label: 'Jumlah Aset', data: divs.length ? divCounts : [0], backgroundColor: colors.slice(0, divs.length || 1), borderRadius: 4 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-    });
-    const c2 = document.getElementById('assetStatusChart').getContext('2d');
-    chartInstances.assetStatus = new Chart(c2, {
-        type: 'pie',
-        data: { labels: ['Tersedia','Maintenance','Habis'], datasets: [{ data: [stCounts.available, stCounts.maintenance, stCounts.depleted], backgroundColor: ['#27ae60','#f39c12','#e74c3c'], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } } }
-    });
-    const c3 = document.getElementById('stockStatusChart').getContext('2d');
-    chartInstances.stockStatus = new Chart(c3, {
-        type: 'pie',
-        data: { labels: ['Tersedia','Menipis','Habis'], datasets: [{ data: [stkCounts.available, stkCounts.low, stkCounts.depleted], backgroundColor: ['#27ae60','#f39c12','#e74c3c'], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } } }
-    });
-    const c4 = document.getElementById('maintenanceStatusChart').getContext('2d');
-    chartInstances.maintenanceStatus = new Chart(c4, {
-        type: 'pie',
-        data: { labels: ['Pending','Selesai','Dibatalkan'], datasets: [{ data: [mtCounts.pending, mtCounts.done, mtCounts.cancelled], backgroundColor: ['#f39c12','#27ae60','#e74c3c'], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } } }
-    });
+    const c1 = document.getElementById('divisionChart');
+    if (c1) {
+        chartInstances.division = new Chart(c1.getContext('2d'), {
+            type: 'bar',
+            data: { labels: divs.length ? divs : ['Belum Ada Data'], datasets: [{ label: 'Jumlah Aset', data: divs.length ? divCounts : [0], backgroundColor: colors.slice(0, divs.length || 1), borderRadius: 4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+    }
+    const c2 = document.getElementById('assetStatusChart');
+    if (c2) {
+        chartInstances.assetStatus = new Chart(c2.getContext('2d'), {
+            type: 'pie',
+            data: { labels: ['Tersedia','Maintenance','Habis'], datasets: [{ data: [stCounts.available, stCounts.maintenance, stCounts.depleted], backgroundColor: ['#27ae60','#f39c12','#e74c3c'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } } }
+        });
+    }
+    const c3 = document.getElementById('stockStatusChart');
+    if (c3) {
+        chartInstances.stockStatus = new Chart(c3.getContext('2d'), {
+            type: 'pie',
+            data: { labels: ['Tersedia','Menipis','Habis'], datasets: [{ data: [stkCounts.available, stkCounts.low, stkCounts.depleted], backgroundColor: ['#27ae60','#f39c12','#e74c3c'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } } }
+        });
+    }
+    const c4 = document.getElementById('maintenanceStatusChart');
+    if (c4) {
+        chartInstances.maintenanceStatus = new Chart(c4.getContext('2d'), {
+            type: 'pie',
+            data: { labels: ['Pending','Selesai','Dibatalkan'], datasets: [{ data: [mtCounts.pending, mtCounts.done, mtCounts.cancelled], backgroundColor: ['#f39c12','#27ae60','#e74c3c'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } } }
+        });
+    }
 }
 
 // ============================================================
@@ -1936,11 +2098,16 @@ function printSection(tableId, title) {
         toast('Tidak ada data untuk dicetak.', 'warning');
         return;
     }
+    // Clone table tanpa aksi kolom
     const table = tb.closest('table');
     const clone = table.cloneNode(true);
+    // Hapus kolom aksi (terakhir) dan elemen no-print
     clone.querySelectorAll('tr').forEach(row => {
         const cells = row.querySelectorAll('td,th');
-        if (cells.length > 0) cells[cells.length - 1].remove();
+        if (cells.length > 1) {
+            // Hapus kolom terakhir (aksi)
+            cells[cells.length - 1].remove();
+        }
     });
     clone.querySelectorAll('.no-print').forEach(el => el.remove());
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
@@ -1971,12 +2138,14 @@ function showSettingsTab(tabId) {
     document.querySelectorAll('.settings-tab').forEach(el => el.style.display = 'none');
     document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${tabId}`).style.display = 'block';
-    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    const btn = document.querySelector(`[data-tab="${tabId}"]`);
+    if (btn) btn.classList.add('active');
     if (tabId === 'reset-password') populateResetUserSelect();
     if (tabId === 'generate-label') renderAssetLabels();
 }
 function populateResetUserSelect() {
     const s = document.getElementById('resetUserSelect');
+    if (!s) return;
     s.innerHTML = '';
     users.forEach(u => {
         if (u.id === currentUser.id) return;
@@ -2007,6 +2176,7 @@ function changePassword(e) {
 }
 function resetUserPassword() {
     const s = document.getElementById('resetUserSelect');
+    if (!s) return;
     const uid = s.value;
     if (!uid) { toast('Pilih user terlebih dahulu!', 'warning'); return; }
     if (!confirm('Reset password user ini ke default (default123)?')) return;
@@ -2022,14 +2192,16 @@ function resetUserPassword() {
 // ===================== LABEL & QR CODE =======================
 function renderAssetLabels() {
     const c = document.getElementById('assetLabelList');
+    if (!c) return;
     if (assets.length === 0) { c.innerHTML = '<p class="text-muted">Belum ada aset untuk dibuat label.</p>'; return; }
     let html = '<div class="label-container">';
     assets.forEach(a => {
         const bd = a.serialNumber || a.id || a._id || 'INV-' + (a.id || a._id).slice(0, 6);
         const id = a.id || a._id;
-        const labelType = document.getElementById('labelType').value;
+        const labelType = document.getElementById('labelType');
+        const type = labelType ? labelType.value : 'barcode';
         let codeHtml = '';
-        if (labelType === 'barcode') codeHtml = `<svg id="barcode-${id}" style="max-width:100px;"></svg>`;
+        if (type === 'barcode') codeHtml = `<svg id="barcode-${id}" style="max-width:100px;"></svg>`;
         else codeHtml = `<div id="qrcode-${id}" class="qr-container"></div>`;
         html += `<div class="label-item"><div style="display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;"><input type="checkbox" class="asset-label-checkbox" value="${id}" checked>${codeHtml}</div><div class="label-title">${a.name}</div><div class="label-sub">${a.division} • ${a.location}</div></div>`;
     });
@@ -2038,8 +2210,9 @@ function renderAssetLabels() {
     assets.forEach(a => {
         const bd = a.serialNumber || a.id || a._id || 'INV-' + (a.id || a._id).slice(0, 6);
         const id = a.id || a._id;
-        const labelType = document.getElementById('labelType').value;
-        if (labelType === 'barcode') {
+        const labelType = document.getElementById('labelType');
+        const type = labelType ? labelType.value : 'barcode';
+        if (type === 'barcode') {
             try { JsBarcode(`#barcode-${id}`, bd, { format: "CODE128", width: 1.5, height: 40, displayValue: true, fontSize: 12, margin: 4 }); } catch(e) {}
         } else {
             const container = document.getElementById(`qrcode-${id}`);
@@ -2051,7 +2224,10 @@ function renderAssetLabels() {
     });
     updateLabelCount();
 }
-document.getElementById('labelType').addEventListener('change', function() { renderAssetLabels(); });
+const labelTypeSelect = document.getElementById('labelType');
+if (labelTypeSelect) {
+    labelTypeSelect.addEventListener('change', function() { renderAssetLabels(); });
+}
 function selectAllAssets(sel) { document.querySelectorAll('.asset-label-checkbox').forEach(cb => cb.checked = sel); updateLabelCount(); }
 function updateLabelCount() {
     const checked = document.querySelectorAll('.asset-label-checkbox:checked').length;
@@ -2066,13 +2242,14 @@ function printSelectedLabels() {
     if (sel.length === 0) { toast('Data aset tidak ditemukan.', 'error'); return; }
     const w = window.open('', '_blank', 'width=1024,height=768');
     if (!w) { toast('Izinkan popup untuk mencetak.', 'warning'); return; }
-    const labelType = document.getElementById('labelType').value;
+    const labelType = document.getElementById('labelType');
+    const type = labelType ? labelType.value : 'barcode';
     let labelHtml = '';
     sel.forEach(a => {
         const bd = a.serialNumber || a.id || a._id || 'INV-' + (a.id || a._id).slice(0, 6);
         const id = a.id || a._id;
         let codeHtml = '';
-        if (labelType === 'barcode') codeHtml = `<svg id="barcode-print-${id}" style="max-width:100px;"></svg>`;
+        if (type === 'barcode') codeHtml = `<svg id="barcode-print-${id}" style="max-width:100px;"></svg>`;
         else codeHtml = `<div id="qrcode-print-${id}" class="qr-container" style="width:100px;height:100px;"></div>`;
         labelHtml += `<div class="label-item">${codeHtml}<div class="label-title">${a.name}</div><div class="label-sub">${a.division} • ${a.location}</div></div>`;
     });
@@ -2089,7 +2266,7 @@ function printSelectedLabels() {
     .label-sub{font-size:9pt;color:#333}
     @media print{.no-print{display:none}body{margin:0.1in}}<\/style>
     <\/head><body onload="generateCodes()"><div class="label-print-grid">${labelHtml}</div>
-    <script>function generateCodes(){const assets=${JSON.stringify(sel)};const type='${labelType}';
+    <script>function generateCodes(){const assets=${JSON.stringify(sel)};const type='${type}';
     assets.forEach(a=>{const bd=a.serialNumber||a.id||a._id||'INV-'+(a.id||a._id).slice(0,6);const id=a.id||a._id;
     if(type==='barcode'){try{JsBarcode('#barcode-print-'+id,bd,{format:"CODE128",width:1.5,height:40,displayValue:true,fontSize:10,margin:3});}catch(e){}}
     else{const container=document.getElementById('qrcode-print-'+id);if(container){container.innerHTML='';try{new QRCode(container,{text:bd,width:80,height:80,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});}catch(e){}}}});
@@ -2109,6 +2286,7 @@ async function loadLogs(direction = null) {
         const logs = res.logs || [];
         totalLogs = res.total || 0;
         const tbody = document.getElementById('logTableBody');
+        if (!tbody) return;
         if (logs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding:30px 0;">Belum ada log</td></tr>';
         } else {
@@ -2130,6 +2308,7 @@ async function loadLogs(direction = null) {
 // ===================== MODAL ================================
 function openModal(id, editData) {
     const m = document.getElementById(id);
+    if (!m) return;
     m.classList.add('active');
     document.body.style.overflow = 'hidden';
     if (editData) {
@@ -2144,9 +2323,14 @@ function openModal(id, editData) {
             document.getElementById('assetSerial').value = editData.serialNumber || '';
             document.getElementById('assetNotes').value = editData.notes || '';
             document.getElementById('assetModalTitle').textContent = 'Edit Aset';
+            // Preview foto
             if (editData.photo) {
-                document.getElementById('assetPhotoImg').src = editData.photo;
-                document.getElementById('assetPhotoPreview').style.display = 'block';
+                const img = document.getElementById('assetPhotoImg');
+                const preview = document.getElementById('assetPhotoPreview');
+                if (img && preview) {
+                    img.src = `${IMAGE_BASE}${editData.photo}`;
+                    preview.style.display = 'block';
+                }
             }
         } else if (id === 'stockModal') {
             document.getElementById('stockEditId').value = itemId || '';
@@ -2217,24 +2401,25 @@ function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     const toggleBtn = document.getElementById('sidebarToggle');
+    if (!sidebar || !toggleBtn) return;
     const icon = toggleBtn.querySelector('i');
     const isMobile = window.innerWidth <= 992;
     if (isMobile) {
         sidebar.classList.toggle('open');
-        overlay.classList.toggle('active');
-        icon.className = sidebar.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
+        if (overlay) overlay.classList.toggle('active');
+        if (icon) icon.className = sidebar.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
         document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
     } else {
         const isOpen = document.body.classList.contains('sidebar-open');
         if (isOpen) {
             document.body.classList.remove('sidebar-open');
             document.body.classList.add('sidebar-closed');
-            icon.className = 'fas fa-bars';
+            if (icon) icon.className = 'fas fa-bars';
             localStorage.setItem(SIDEBAR_STATE_KEY, 'closed');
         } else {
             document.body.classList.remove('sidebar-closed');
             document.body.classList.add('sidebar-open');
-            icon.className = 'fas fa-times';
+            if (icon) icon.className = 'fas fa-times';
             localStorage.setItem(SIDEBAR_STATE_KEY, 'open');
         }
     }
@@ -2243,30 +2428,33 @@ function closeSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     const toggleBtn = document.getElementById('sidebarToggle');
+    if (!sidebar || !toggleBtn) return;
     const icon = toggleBtn.querySelector('i');
     const isMobile = window.innerWidth <= 992;
     if (isMobile) {
         sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-        icon.className = 'fas fa-bars';
+        if (overlay) overlay.classList.remove('active');
+        if (icon) icon.className = 'fas fa-bars';
         document.body.style.overflow = '';
     } else {
         document.body.classList.remove('sidebar-open');
         document.body.classList.add('sidebar-closed');
-        icon.className = 'fas fa-bars';
+        if (icon) icon.className = 'fas fa-bars';
         localStorage.setItem(SIDEBAR_STATE_KEY, 'closed');
     }
 }
 function initSidebarState() {
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('sidebarToggle');
+    if (!sidebar || !toggleBtn) return;
     const icon = toggleBtn.querySelector('i');
     const isMobile = window.innerWidth <= 992;
     const savedState = localStorage.getItem(SIDEBAR_STATE_KEY);
     if (isMobile) {
         sidebar.classList.remove('open');
-        document.getElementById('sidebarOverlay').classList.remove('active');
-        icon.className = 'fas fa-bars';
+        const overlay = document.getElementById('sidebarOverlay');
+        if (overlay) overlay.classList.remove('active');
+        if (icon) icon.className = 'fas fa-bars';
         document.body.style.overflow = '';
         document.body.classList.remove('sidebar-open');
         document.body.classList.add('sidebar-closed');
@@ -2274,17 +2462,23 @@ function initSidebarState() {
         if (savedState === 'closed') {
             document.body.classList.add('sidebar-closed');
             document.body.classList.remove('sidebar-open');
-            icon.className = 'fas fa-bars';
+            if (icon) icon.className = 'fas fa-bars';
         } else {
             document.body.classList.remove('sidebar-closed');
             document.body.classList.add('sidebar-open');
-            icon.className = 'fas fa-times';
+            if (icon) icon.className = 'fas fa-times';
             localStorage.setItem(SIDEBAR_STATE_KEY, 'open');
         }
     }
 }
-document.getElementById('sidebarToggle').addEventListener('click', function(e) { e.stopPropagation(); toggleSidebar(); });
-document.getElementById('sidebarOverlay').addEventListener('click', function(e) { e.stopPropagation(); closeSidebar(); });
+const sidebarToggleBtn = document.getElementById('sidebarToggle');
+if (sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleSidebar(); });
+}
+const sidebarOverlayEl = document.getElementById('sidebarOverlay');
+if (sidebarOverlayEl) {
+    sidebarOverlayEl.addEventListener('click', function(e) { e.stopPropagation(); closeSidebar(); });
+}
 document.addEventListener('keydown', function(e) { if (e.key === 'F12' || e.keyCode === 123) { e.stopPropagation(); } }, true);
 let resizeTimeout;
 window.addEventListener('resize', function() {
@@ -2294,11 +2488,12 @@ window.addEventListener('resize', function() {
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
         const toggleBtn = document.getElementById('sidebarToggle');
+        if (!sidebar || !toggleBtn) return;
         const icon = toggleBtn.querySelector('i');
         if (isMobile) {
             sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-            icon.className = 'fas fa-bars';
+            if (overlay) overlay.classList.remove('active');
+            if (icon) icon.className = 'fas fa-bars';
             document.body.style.overflow = '';
             document.body.classList.add('sidebar-closed');
             document.body.classList.remove('sidebar-open');
@@ -2307,11 +2502,11 @@ window.addEventListener('resize', function() {
             if (savedState === 'open') {
                 document.body.classList.remove('sidebar-closed');
                 document.body.classList.add('sidebar-open');
-                icon.className = 'fas fa-times';
+                if (icon) icon.className = 'fas fa-times';
             } else {
                 document.body.classList.add('sidebar-closed');
                 document.body.classList.remove('sidebar-open');
-                icon.className = 'fas fa-bars';
+                if (icon) icon.className = 'fas fa-bars';
             }
         }
     }, 300);
@@ -2358,17 +2553,24 @@ document.querySelectorAll('.sidebar-nav a[data-section]').forEach(el => {
 
 // ============================================================
 // ===================== PHOTO PREVIEW ========================
-document.getElementById('assetPhoto').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            document.getElementById('assetPhotoImg').src = ev.target.result;
-            document.getElementById('assetPhotoPreview').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-});
+const assetPhotoInput = document.getElementById('assetPhoto');
+if (assetPhotoInput) {
+    assetPhotoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const img = document.getElementById('assetPhotoImg');
+                const preview = document.getElementById('assetPhotoPreview');
+                if (img && preview) {
+                    img.src = ev.target.result;
+                    preview.style.display = 'block';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
 function removePhotoPreview() {
     document.getElementById('assetPhoto').value = '';
     document.getElementById('assetPhotoPreview').style.display = 'none';

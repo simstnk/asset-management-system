@@ -1,14 +1,25 @@
-# Dependencies (berat)
+# Node
 node_modules/
-
-# Environment (rahasia)
+npm-debug.log
+yarn-error.log
 .env
-.env.local
 
-# Data dinamis runtime (foto upload, log)
-uploads/
-logs/
+# Backend uploads & data
+backend/uploads/
+backend/*.log
+*.db
+*.sqlite
 
-# File sampah OS
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Frontend cache
+frontend/assets/barcodes/
+*.tmp

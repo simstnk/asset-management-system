@@ -56,119 +56,6 @@ Sistem manajemen inventaris aset berbasis web untuk mengelola data aset IT, stok
 
 ---
 
-## 📁 Struktur Folder
-
-asset-management-system/
-├── backend/
-│ ├── src/
-│ │ ├── config/
-│ │ │ ├── db.js
-│ │ │ └── constants.js
-│ │ ├── models/
-│ │ │ ├── Asset.js
-│ │ │ ├── Stock.js
-│ │ │ ├── Maintenance.js
-│ │ │ ├── DailyActivity.js
-│ │ │ ├── Loan.js
-│ │ │ ├── User.js
-│ │ │ ├── Category.js
-│ │ │ ├── Division.js
-│ │ │ ├── Location.js
-│ │ │ └── AuditLog.js
-│ │ ├── controllers/
-│ │ │ ├── assetController.js
-│ │ │ ├── stockController.js
-│ │ │ ├── maintenanceController.js
-│ │ │ ├── dailyActivityController.js
-│ │ │ ├── loanController.js
-│ │ │ ├── userController.js
-│ │ │ ├── categoryController.js
-│ │ │ ├── divisionController.js
-│ │ │ ├── locationController.js
-│ │ │ ├── dashboardController.js
-│ │ │ ├── authController.js
-│ │ │ └── auditLogController.js
-│ │ ├── routes/
-│ │ │ ├── index.js
-│ │ │ ├── assets.js
-│ │ │ ├── stocks.js
-│ │ │ ├── maintenances.js
-│ │ │ ├── activities.js
-│ │ │ ├── loans.js
-│ │ │ ├── divisions.js
-│ │ │ ├── categories.js
-│ │ │ ├── locations.js
-│ │ │ ├── users.js
-│ │ │ ├── auth.js
-│ │ │ └── logs.js
-│ │ ├── middleware/
-│ │ │ ├── auth.js
-│ │ │ ├── rbac.js
-│ │ │ ├── errorHandler.js
-│ │ │ └── upload.js
-│ │ ├── services/
-│ │ │ ├── csvService.js
-│ │ │ ├── barcodeService.js
-│ │ │ ├── auditService.js
-│ │ │ └── notificationService.js
-│ │ ├── utils/
-│ │ │ ├── response.js
-│ │ │ ├── validators.js
-│ │ │ └── helpers.js
-│ │ └── app.js
-│ ├── server.js
-│ ├── .env
-│ ├── package.json
-│ └── seed.js
-├── frontend/
-│ ├── index.html
-│ ├── dashboard.html
-│ ├── assets.html
-│ ├── stocks.html
-│ ├── maintenance.html
-│ ├── daily-activity.html
-│ ├── loans.html
-│ ├── users.html
-│ ├── categories.html
-│ ├── divisions.html
-│ ├── locations.html
-│ ├── reports.html
-│ ├── profile.html
-│ ├── login.html
-│ ├── css/
-│ │ ├── style.css
-│ │ ├── dashboard.css
-│ │ └── components.css
-│ ├── js/
-│ │ ├── app.js
-│ │ ├── api.js
-│ │ ├── auth.js
-│ │ ├── dashboard.js
-│ │ ├── assets.js
-│ │ ├── stocks.js
-│ │ ├── maintenance.js
-│ │ ├── daily-activity.js
-│ │ ├── loans.js
-│ │ ├── users.js
-│ │ ├── categories.js
-│ │ ├── divisions.js
-│ │ ├── locations.js
-│ │ ├── reports.js
-│ │ ├── profile.js
-│ │ ├── common.js
-│ │ └── utils.js
-│ └── assets/
-│ ├── images/
-│ └── barcodes/
-├── uploads/
-├── logs/
-├── README.md
-└── .gitignore
-
-
-
----
-
 ## ⚙️ Prasyarat
 
 - **Node.js** (v16 atau lebih baru)
@@ -254,17 +141,18 @@ administrator	admin123	Administrator
 admin	admin123	Admin
 viewer	viewer123	Viewer
 Hak Akses per Role
-Menu	Administrator	Admin	Viewer
-Dashboard	✅	✅	✅
-Manajemen Aset	✅	✅	✅
-Manajemen Stok	✅	✅	✅ (read only)
-Jadwal Maintenance	✅	✅	✅ (read only)
-Daily Activity	✅	✅	✅ (read only)
-Peminjaman Aset	✅	✅	✅ (read only)
-Master Data	✅	✅	❌
-Manajemen User	✅	❌	❌
-Riwayat Aktivitas	✅	✅	❌
-Export/Import	✅	✅	❌
+Menu------------   Administrator---Admin----Viewer
+Dashboard				✅		    ✅		 ✅
+Manajemen Aset	 		✅	        ✅	     ✅
+Manajemen Stok			✅	        ✅	     ✅ (read only)
+Jadwal Maintenance		✅	        ✅	     ✅ (read only)
+Daily Activity			✅	        ✅	     ✅ (read only)
+Peminjaman Aset			✅	        ✅	     ✅ (read only)
+Master Data				✅	        ✅	     ❌
+Manajemen User			✅	        ❌	     ❌
+Riwayat Aktivitas		✅	        ✅	     ❌
+Export/Import			✅	        ✅	     ❌
+
 📌 Fitur Khusus
 🔔 Notifikasi
 Sistem memiliki dua jenis notifikasi otomatis:
