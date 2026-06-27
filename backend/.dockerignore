@@ -1,0 +1,11 @@
+node_modules/
+.env
+*.log
+uploads/
+.git/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+frontend/assets/barcodes/

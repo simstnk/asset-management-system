@@ -240,23 +240,34 @@ curl -X GET http://localhost:5000/api/assets \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
   
 🐳 Deployment
-Deployment dengan Docker
-Buat Dockerfile untuk backend:
+## 🐳 Deployment dengan Docker
 
-dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY backend/package*.json ./
-RUN npm install --production
-COPY backend/ .
-EXPOSE 5000
-CMD ["npm", "start"]
-Deployment ke Production
-Backend – Deploy ke VPS, Heroku, atau Railway
+Aplikasi ini sudah dikemas dalam image Docker dan tersedia di Docker Hub.
 
-Frontend – Hosting statis (Netlify, Vercel, atau GitHub Pages)
+### Prasyarat
+- Docker terinstal di sistem Anda.
+- (Opsional) Docker Compose jika ingin menjalankan dengan konfigurasi lebih lanjut.
 
-Database – Gunakan MongoDB Atlas untuk production
+### Menjalankan dengan Docker
+
+1. **Pull image dari Docker Hub:**
+   ```bash
+   docker pull dkcocro/inventaris-aset:latest
+   
+2. **Jalankan container:**
+   ```bash
+   docker run -d -p 5000:5000 --name inventaris-aset dkcocro/inventaris-aset:latest
+ 
+3. **Akses aplikasi:**
+ Buka browser di http://localhost:5000
+ 
+Build Image Sendiri (Untuk Pengembangan)
+Jika ingin membangun image sendiri dari source code:
+# Di root project
+```bash
+docker build -t inventaris-aset .
+docker tag inventaris-aset dkcocro/inventaris-aset:latest
+docker push dkcocro/inventaris-aset:latest
 
 🛠️ Troubleshooting
 Masalah	Solusi
