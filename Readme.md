@@ -70,7 +70,7 @@ Sistem manajemen inventaris aset berbasis web untuk mengelola data aset IT, stok
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-username/asset-management-system.git
+git clone https://github.com/your-username/asset-management-system.gi](https://github.com/simstnk/asset-management-system.git
 cd asset-management-system
 
 2. Setup Backend
@@ -306,6 +306,6 @@ Update dokumentasi jika diperlukan
 📧 Kontak
 Email: dkcocro@gmail.com
 
-Repository: https://github.com/simstnk/Sistem-manajemen-inventaris-aset.git
+Repository: https://github.com/simstnk/asset-management-system.git
 
 ---
