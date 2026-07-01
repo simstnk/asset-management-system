@@ -560,7 +560,6 @@
                 </div>
             </div>
             <div class="form-group"><label>Serial Number</label><input class="form-control" id="assetSerial" placeholder="Nomor seri / inventaris" /></div>
-            <!-- TAMBAHKAN KODE ASET -->
             <div class="form-group">
                 <label>Kode Aset</label>
                 <input class="form-control" id="assetCode" placeholder="Kosongkan untuk auto-generate" />
@@ -591,7 +590,25 @@
 <div class="modal-overlay" id="maintenanceModal">
     <div class="modal">
         <div class="modal-header"><h4 id="mtModalTitle">Jadwalkan Maintenance</h4><button class="close-modal" onclick="closeModal('maintenanceModal')">&times;</button></div>
-        <div class="modal-body"><input type="hidden" id="mtEditId" /><div class="form-group"><label>Aset <span class="required">*</span></label><input class="form-control" id="mtAsset" placeholder="Nama aset yang akan dimaintenance" /></div><div class="form-row"><div class="form-group"><label>Tanggal Jadwal <span class="required">*</span></label><input class="form-control" id="mtScheduled" type="date" /></div><div class="form-group"><label>Jenis <span class="required">*</span></label><select class="form-control" id="mtType"><option value="Preventive">Preventive</option><option value="Corrective">Corrective</option><option value="Predictive">Predictive</option><option value="Rutin">Rutin</option></select></div></div><div class="form-row"><div class="form-group"><label>Status <span class="required">*</span></label><select class="form-control" id="mtStatus"><option value="pending">Pending</option><option value="done">Selesai</option><option value="cancelled">Dibatalkan</option></select></div><div class="form-group"><label>Teknisi</label><input class="form-control" id="mtTechnician" placeholder="Nama teknisi" /></div></div><div class="form-group"><label>Catatan</label><textarea class="form-control" id="mtNotes" placeholder="Detail maintenance..."></textarea></div></div>
+        <div class="modal-body">
+            <input type="hidden" id="mtEditId" />
+            <!-- Aset menjadi dropdown -->
+            <div class="form-group">
+                <label>Aset <span class="required">*</span></label>
+                <select class="form-control" id="mtAsset">
+                    <option value="">-- Pilih Aset --</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Tanggal Jadwal <span class="required">*</span></label><input class="form-control" id="mtScheduled" type="date" /></div>
+                <div class="form-group"><label>Jenis <span class="required">*</span></label><select class="form-control" id="mtType"><option value="Preventive">Preventive</option><option value="Corrective">Corrective</option><option value="Predictive">Predictive</option><option value="Rutin">Rutin</option></select></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Status <span class="required">*</span></label><select class="form-control" id="mtStatus"><option value="pending">Pending</option><option value="done">Selesai</option><option value="cancelled">Dibatalkan</option></select></div>
+                <div class="form-group"><label>Teknisi</label><input class="form-control" id="mtTechnician" placeholder="Nama teknisi" /></div>
+            </div>
+            <div class="form-group"><label>Catatan</label><textarea class="form-control" id="mtNotes" placeholder="Detail maintenance..."></textarea></div>
+        </div>
         <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('maintenanceModal')">Batal</button><button class="btn btn-primary" onclick="saveMaintenance()"><i class="fas fa-save"></i> Simpan</button></div>
     </div>
 </div>
@@ -1143,6 +1160,29 @@ async function saveProfileSettings() {
 }
 
 // ============================================================
+// ===================== DROPDOWN MAINTENANCE ==================
+function populateMaintenanceAssetDropdown(selectedId = null) {
+    const select = document.getElementById('mtAsset');
+    if (!select) return;
+    // Simpan nilai yang dipilih sebelumnya
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">-- Pilih Aset --</option>';
+    assets.forEach(a => {
+        const id = a.id || a._id;
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = `${a.name} (${a.division})`;
+        select.appendChild(option);
+    });
+    // Set nilai jika ada selectedId
+    if (selectedId) {
+        select.value = selectedId;
+    } else if (currentVal && assets.some(a => (a.id || a._id) === currentVal)) {
+        select.value = currentVal;
+    }
+}
+
+// ============================================================
 // ===================== LOAD DATA =============================
 async function loadAllData() {
     try {
@@ -1157,6 +1197,8 @@ async function loadAllData() {
         renderAll();
         renderCharts();
         checkNotifications();
+        // Isi dropdown maintenance dengan aset terbaru
+        populateMaintenanceAssetDropdown();
         if (currentUser && currentUser.role === 'administrator') {
             await loadMasterData();
             await loadLogs();
@@ -1551,7 +1593,7 @@ async function saveAsset() {
     formData.append('location', document.getElementById('assetLocation').value);
     formData.append('status', document.getElementById('assetStatus').value);
     formData.append('serialNumber', document.getElementById('assetSerial').value.trim());
-    formData.append('assetCode', document.getElementById('assetCode').value.trim()); // <-- TAMBAHKAN
+    formData.append('assetCode', document.getElementById('assetCode').value.trim());
     formData.append('notes', document.getElementById('assetNotes').value.trim());
     const photoInput = document.getElementById('assetPhoto');
     if (photoInput && photoInput.files.length > 0) formData.append('photo', photoInput.files[0]);
@@ -1643,15 +1685,22 @@ async function deleteStock(id) {
 async function saveMaintenance() {
     if (!hasPermission('create')) { toast('Akses ditolak!', 'error'); return; }
     const id = document.getElementById('mtEditId').value;
+    const assetSelect = document.getElementById('mtAsset');
+    const assetId = assetSelect.value;
+    const assetName = assetSelect.options[assetSelect.selectedIndex]?.text || '';
+
+    if (!assetId) { toast('Pilih aset terlebih dahulu!', 'warning'); return; }
+
     const data = {
-        asset: document.getElementById('mtAsset').value.trim(),
+        assetId: assetId,
+        asset: assetName,
         scheduledDate: document.getElementById('mtScheduled').value,
         type: document.getElementById('mtType').value,
         status: document.getElementById('mtStatus').value,
         assignedTo: document.getElementById('mtTechnician').value.trim(),
         notes: document.getElementById('mtNotes').value.trim()
     };
-    if (!data.asset || !data.scheduledDate) { toast('Aset dan tanggal wajib!', 'warning'); return; }
+    if (!data.scheduledDate) { toast('Tanggal jadwal wajib diisi!', 'warning'); return; }
     try {
         if (id) {
             await apiRequest(`/maintenances/${id}`, 'PUT', data);
@@ -1987,7 +2036,7 @@ function exportToCSV(data, filename, headers) {
 function exportAssets() {
     const h = {
         name: 'Nama Aset',
-        assetCode: 'Kode Aset',  // <-- TAMBAHKAN
+        assetCode: 'Kode Aset',
         category: 'Kategori',
         division: 'Divisi',
         location: 'Lokasi',
@@ -2047,7 +2096,7 @@ function importAssets(e) {
             if (row['Nama Aset'] && row['Divisi'] && row['Lokasi']) {
                 await apiRequest('/assets', 'POST', {
                     name: row['Nama Aset'] || '',
-                    assetCode: row['Kode Aset'] || '', // <-- TAMBAHKAN
+                    assetCode: row['Kode Aset'] || '',
                     category: row['Kategori'] || 'Server',
                     division: row['Divisi'] || 'IT',
                     location: row['Lokasi'] || '',
@@ -2384,7 +2433,7 @@ function openModal(id, editData) {
             document.getElementById('assetLocation').value = editData.location || '';
             document.getElementById('assetStatus').value = editData.status || 'available';
             document.getElementById('assetSerial').value = editData.serialNumber || '';
-            document.getElementById('assetCode').value = editData.assetCode || ''; // <-- TAMBAHKAN
+            document.getElementById('assetCode').value = editData.assetCode || '';
             document.getElementById('assetNotes').value = editData.notes || '';
             document.getElementById('assetModalTitle').textContent = 'Edit Aset';
             if (editData.photo) {
@@ -2405,7 +2454,8 @@ function openModal(id, editData) {
             document.getElementById('stockModalTitle').textContent = 'Edit Stok';
         } else if (id === 'maintenanceModal') {
             document.getElementById('mtEditId').value = itemId || '';
-            document.getElementById('mtAsset').value = editData.asset || '';
+            // Isi dropdown dengan aset yang dipilih
+            populateMaintenanceAssetDropdown(editData.assetId || editData.asset || null);
             document.getElementById('mtScheduled').value = editData.scheduledDate || '';
             document.getElementById('mtType').value = editData.type || 'Preventive';
             document.getElementById('mtStatus').value = editData.status || 'pending';
@@ -2429,10 +2479,13 @@ function openModal(id, editData) {
         const hid = document.getElementById(id.replace('Modal', 'EditId'));
         if (hid) hid.value = '';
         if (id === 'activityModal') document.getElementById('activityDate').value = new Date().toISOString().split('T')[0];
-        if (id === 'maintenanceModal') document.getElementById('mtScheduled').value = new Date().toISOString().split('T')[0];
+        if (id === 'maintenanceModal') {
+            document.getElementById('mtScheduled').value = new Date().toISOString().split('T')[0];
+            populateMaintenanceAssetDropdown(); // isi dropdown dengan semua aset
+        }
         if (id === 'assetModal') {
             document.getElementById('assetNotes').value = '';
-            document.getElementById('assetCode').value = ''; // reset kode aset
+            document.getElementById('assetCode').value = '';
             document.getElementById('assetPhotoPreview').style.display = 'none';
             document.getElementById('assetPhoto').value = '';
         }
